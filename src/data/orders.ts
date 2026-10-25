@@ -105,7 +105,7 @@ export function saveCheckoutDraft(draft: Partial<OrderCustomer>) {
 }
 
 export function formatOrderTotal(order: Order) {
-  return formatPrice(order.subtotal, order.currency)
+  return formatPrice(order.subtotal)
 }
 
 function readJson<T>(key: string, fallback: T): T {
