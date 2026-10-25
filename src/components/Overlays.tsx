@@ -54,33 +54,160 @@ export function SearchOverlay({
   )
 }
 
+
 export function ProfileOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { orders } = useOrders()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+
   if (!open) return null
+
+  async function handleAuth() {
+    setMessage('')
+    setLoading(true)
+
+    try {
+      const { supabase } = await import('../lib/supabase')
+
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { display_name: displayName.trim() } },
+        })
+
+        if (error) throw error
+
+        setMessage(
+          data.session
+            ? 'Регистрация завершена. Вы вошли в аккаунт.'
+            : 'Аккаунт создан. Проверьте почту для подтверждения регистрации.',
+        )
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        })
+
+        if (error) throw error
+        setMessage('Вы успешно вошли в аккаунт.')
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Не удалось выполнить операцию.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button type="button" className="absolute inset-0 bg-black/55 backdrop-blur-md" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Закрыть профиль"
+        className="absolute inset-0 bg-black/55 backdrop-blur-md"
+        onClick={onClose}
+      />
+
       <div className="glass relative max-h-[86svh] w-full max-w-md overflow-y-auto rounded-[28px] p-8">
-        <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">ARAL Atelier</p>
-        <h3 className="mt-3 text-3xl font-light tracking-[-0.03em]">Членство дома</h3>
-        <p className="mt-4 text-sm leading-relaxed text-white/55">
-          Не аккаунт магазина — доступ к дропам раньше витрины, примерка по записи и архив прошлых
-          капсул. Регистрация через лист ожидания ниже.
+        <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">
+          ARAL OS · ACCOUNT
         </p>
-        <div className="mt-8">
-          <p className="text-[11px] tracking-[0.22em] text-white/40 uppercase">Заказы</p>
+
+        <h3 className="mt-3 text-3xl font-light tracking-[-0.03em]">
+          {mode === 'login' ? 'С возвращением' : 'Создать аккаунт'}
+        </h3>
+
+        <form
+          className="mt-6 space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleAuth()
+          }}
+        >
+          {mode === 'signup' && (
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Ваше имя"
+              autoComplete="name"
+              required
+              className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+            />
+          )}
+
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Email"
+            autoComplete="email"
+            required
+            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+          />
+
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Пароль (минимум 6 символов)"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            minLength={6}
+            required
+            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="glass-pill h-12 w-full rounded-full text-[11px] tracking-[0.2em] uppercase disabled:opacity-50"
+          >
+            {loading ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+          </button>
+        </form>
+
+        <button
+          type="button"
+          className="mt-4 text-sm text-white/60 underline underline-offset-4"
+          onClick={() => {
+            setMode(mode === 'login' ? 'signup' : 'login')
+            setMessage('')
+          }}
+        >
+          {mode === 'login'
+            ? 'Нет аккаунта? Зарегистрироваться'
+            : 'Уже есть аккаунт? Войти'}
+        </button>
+
+        {message && (
+          <p role="status" className="mt-4 break-words text-sm text-white/70">
+            {message}
+          </p>
+        )}
+
+        <div className="mt-8 border-t border-white/10 pt-6">
+          <p className="text-[11px] tracking-[0.22em] text-white/40 uppercase">
+            Заказы
+          </p>
+
           {orders.length === 0 ? (
-            <p className="mt-3 text-sm text-white/45">Пока пусто. Соберите образ в lookbook.</p>
+            <p className="mt-3 text-sm text-white/45">Пока заказов нет.</p>
           ) : (
             <ul className="mt-4 space-y-4">
               {orders.map((order) => (
                 <li key={order.id} className="border-b border-white/8 pb-4">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm">{order.id}</p>
-                    <p className="text-sm text-white/70">{formatPrice(order.subtotal)}</p>
+                    <p className="text-sm text-white/70">
+                      {formatPrice(order.subtotal)}
+                    </p>
                   </div>
                   <p className="mt-1 text-[11px] text-white/40">
-                    {order.customer.fulfillment === 'atelier' ? 'Ателье' : 'Курьер'} ·{' '}
                     {order.items.map((item) => item.name).join(', ')}
                   </p>
                 </li>
@@ -88,13 +215,6 @@ export function ProfileOverlay({ open, onClose }: { open: boolean; onClose: () =
             </ul>
           )}
         </div>
-        <a
-          href="#atelier"
-          onClick={onClose}
-          className="glass-pill mt-6 inline-flex h-11 items-center rounded-full px-6 text-[11px] tracking-[0.2em] uppercase"
-        >
-          Встать в лист
-        </a>
       </div>
     </div>
   )
