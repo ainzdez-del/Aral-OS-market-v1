@@ -1,179 +1,125 @@
-export function ProfileOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { orders } = useOrders()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('')
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+import { formatPrice, productById, type Size } from './catalog'
 
-  if (!open) return null
+type SnapshotLine = {
+  key: string
+  productId: string
+  size: Size
+  qty: number
+}
 
-  async function handleAuth() {
-    setMessage('')
-    setLoading(true)
+export type Fulfillment = 'atelier' | 'courier'
 
-    try {
-      const { supabase } = await import('../lib/supabase')
+export type OrderCustomer = {
+  name: string
+  email: string
+  phone: string
+  city: string
+  address: string
+  note: string
+  fulfillment: Fulfillment
+}
 
-      if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: { display_name: displayName.trim() },
-          },
-        })
+export type OrderItem = {
+  key: string
+  productId: string
+  name: string
+  sku: string
+  image: string
+  size: Size
+  qty: number
+  unitPrice: number
+}
 
-        if (error) throw error
+export type OrderStatus = 'confirmed' | 'atelier' | 'shipped'
 
-        setMessage(
-          data.session
-            ? 'Регистрация завершена. Вы вошли в аккаунт.'
-            : 'Аккаунт создан. Проверьте почту и подтвердите регистрацию, если это требуется.',
-        )
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        })
+export type Order = {
+  id: string
+  createdAt: string
+  status: OrderStatus
+  customer: OrderCustomer
+  items: OrderItem[]
+  subtotal: number
+  currency: string
+}
 
-        if (error) throw error
-        setMessage('Вы успешно вошли в аккаунт.')
-      }
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось выполнить операцию. Попробуйте ещё раз.',
-      )
-    } finally {
-      setLoading(false)
-    }
+const ORDERS_KEY = 'aral.orders'
+const CART_KEY = 'aral.cart'
+const DRAFT_KEY = 'aral.checkout-draft'
+
+export function linesToItems(lines: SnapshotLine[]): OrderItem[] {
+  return lines.flatMap((line) => {
+    const product = productById(line.productId)
+    if (!product) return []
+    return [
+      {
+        key: line.key,
+        productId: line.productId,
+        name: product.name,
+        sku: product.sku,
+        image: product.image,
+        size: line.size,
+        qty: line.qty,
+        unitPrice: product.price,
+      },
+    ]
+  })
+}
+
+export function createOrder(lines: SnapshotLine[], customer: OrderCustomer): Order {
+  const items = linesToItems(lines)
+  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.qty, 0)
+  const stamp = Date.now().toString(36).toUpperCase()
+  return {
+    id: `ARAL-${stamp}`,
+    createdAt: new Date().toISOString(),
+    status: customer.fulfillment === 'atelier' ? 'atelier' : 'confirmed',
+    customer,
+    items,
+    subtotal,
+    currency: '€',
   }
+}
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Закрыть профиль"
-        className="absolute inset-0 bg-black/55 backdrop-blur-md"
-        onClick={onClose}
-      />
+export function loadOrders(): Order[] {
+  return readJson<Order[]>(ORDERS_KEY, [])
+}
 
-      <div className="glass relative max-h-[86svh] w-full max-w-md overflow-y-auto rounded-[28px] p-8">
-        <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">
-          ARAL OS · ACCOUNT
-        </p>
+export function saveOrders(orders: Order[]) {
+  writeJson(ORDERS_KEY, orders)
+}
 
-        <h3 className="mt-3 text-3xl font-light tracking-[-0.03em]">
-          {mode === 'login' ? 'С возвращением' : 'Создать аккаунт'}
-        </h3>
+export function loadCartLines(): SnapshotLine[] {
+  return readJson<SnapshotLine[]>(CART_KEY, [])
+}
 
-        <p className="mt-3 text-sm leading-relaxed text-white/55">
-          Войдите или зарегистрируйтесь, чтобы пользоваться личным кабинетом.
-        </p>
+export function saveCartLines(lines: SnapshotLine[]) {
+  writeJson(CART_KEY, lines)
+}
 
-        <form
-          className="mt-6 space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void handleAuth()
-          }}
-        >
-          {mode === 'signup' && (
-            <input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Ваше имя"
-              autoComplete="name"
-              required
-              maxLength={80}
-              className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none placeholder:text-white/35"
-            />
-          )}
+export function loadCheckoutDraft(): Partial<OrderCustomer> | null {
+  return readJson<Partial<OrderCustomer> | null>(DRAFT_KEY, null)
+}
 
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Email"
-            autoComplete="email"
-            required
-            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none placeholder:text-white/35"
-          />
+export function saveCheckoutDraft(draft: Partial<OrderCustomer>) {
+  writeJson(DRAFT_KEY, draft)
+}
 
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Пароль (минимум 6 символов)"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            minLength={6}
-            required
-            className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none placeholder:text-white/35"
-          />
+export function formatOrderTotal(order: Order) {
+  return formatPrice(order.subtotal)
+}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="glass-pill h-12 w-full rounded-full text-[11px] tracking-[0.2em] uppercase disabled:opacity-50"
-          >
-            {loading
-              ? 'Подождите…'
-              : mode === 'login'
-                ? 'Войти'
-                : 'Зарегистрироваться'}
-          </button>
-        </form>
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
 
-        <button
-          type="button"
-          className="mt-4 text-sm text-white/60 underline underline-offset-4"
-          onClick={() => {
-            setMode(mode === 'login' ? 'signup' : 'login')
-            setMessage('')
-          }}
-        >
-          {mode === 'login'
-            ? 'Нет аккаунта? Зарегистрироваться'
-            : 'Уже есть аккаунт? Войти'}
-        </button>
-
-        {message && (
-          <p role="status" className="mt-4 break-words text-sm text-white/70">
-            {message}
-          </p>
-        )}
-
-        <div className="mt-8 border-t border-white/10 pt-6">
-          <p className="text-[11px] tracking-[0.22em] text-white/40 uppercase">
-            Заказы
-          </p>
-
-          {orders.length === 0 ? (
-            <p className="mt-3 text-sm text-white/45">
-              Пока заказов нет.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-4">
-              {orders.map((order) => (
-                <li key={order.id} className="border-b border-white/8 pb-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-sm">{order.id}</p>
-                    <p className="text-sm text-white/70">
-                      {formatPrice(order.subtotal)}
-                    </p>
-                  </div>
-                  <p className="mt-1 text-[11px] text-white/40">
-                    {order.items.map((item) => item.name).join(', ')}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+function writeJson(key: string, value: unknown) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(key, JSON.stringify(value))
 }
