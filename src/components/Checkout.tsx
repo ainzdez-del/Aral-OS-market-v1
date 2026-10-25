@@ -304,7 +304,7 @@ function Receipt({ order, onClose }: { order: Order; onClose: () => void }) {
       </div>
       <div className="mt-6 flex justify-between border-t border-white/10 pt-4 text-sm">
         <span className="text-white/50">Итого</span>
-        <span>{formatPrice(order.subtotal, order.currency)}</span>
+        <span>{formatPrice(order.subtotal)}</span>
       </div>
       <dl className="mt-6 grid gap-2 text-sm text-white/50">
         <div className="flex justify-between gap-4">
