@@ -149,12 +149,14 @@ export const fabricSpecs = [
 ]
 
 
-export function formatPrice(price: number, currency = 'UZS') {
+
+export function formatPrice(price: number) {
   return `${new Intl.NumberFormat('ru-RU', {
     maximumFractionDigits: 0,
   }).format(price)} сум`
 }
 
+
 export function productById(id: string) {
-  return products.find((item) => item.id === id)
+  return products.find((item) => item.id === id) ?? null;
 }
