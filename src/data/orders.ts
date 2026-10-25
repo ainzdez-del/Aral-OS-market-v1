@@ -1,4 +1,3 @@
-
 export function ProfileOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { orders } = useOrders()
   const [email, setEmail] = useState('')
