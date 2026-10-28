@@ -1,23 +1,86 @@
+
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { formatPrice, products, type Product } from '../data/catalog'
+import {
+  formatPrice,
+  products as fallbackProducts,
+  type Product,
+} from '../data/catalog'
+import { supabase } from '../lib/supabase'
 import { MagneticSurface } from './MagneticSurface'
 import { MediaImage } from './MediaImage'
 
 const ease = [0.16, 1, 0.3, 1] as const
 
-export function BentoCollection({ onSelect }: { onSelect: (product: Product) => void }) {
+export function BentoCollection({
+  onSelect,
+}: {
+  onSelect: (product: Product) => void
+}) {
+  const [products, setProducts] = useState<Product[]>(fallbackProducts)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadProducts() {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_published', true)
+        .order('created_at', { ascending: true })
+
+      if (cancelled) return
+
+      if (error) {
+        console.error('ARAL: failed to load products from Supabase', error)
+        setProducts(fallbackProducts)
+        return
+      }
+
+      const mappedProducts: Product[] = (data ?? []).map(
+        (item, index) => ({
+          id: String(item.id),
+          sku: item.sku ?? item.slug ?? `ARAL-${index + 1}`,
+          name: item.name,
+          line: item.line ?? 'ARAL Collection',
+          price: Number(item.price ?? 0),
+          currency: item.currency ?? 'UZS',
+          image: item.image_url ?? '',
+          hoverImage: item.hover_image ?? undefined,
+          span: item.span ?? 'md:col-span-2',
+          story: item.story ?? item.description ?? '',
+          fabric: item.fabric ?? '',
+        }),
+      )
+
+      setProducts(mappedProducts)
+    }
+
+    void loadProducts()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
-    <section id="collection" className="relative mx-auto max-w-6xl px-5 py-24 md:px-8 md:py-32">
+    <section
+      id="collection"
+      className="relative mx-auto max-w-6xl px-5 py-24 md:px-8 md:py-32"
+    >
       <div className="mb-12 flex flex-col gap-4 md:mb-16 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-[11px] tracking-[0.32em] text-white/45 uppercase">Коллекция · Drop 01</p>
+          <p className="text-[11px] tracking-[0.32em] text-white/45 uppercase">
+            Коллекция · Drop 01
+          </p>
           <h2 className="mt-3 max-w-xl text-4xl font-light tracking-[-0.04em] md:text-6xl">
             Артефакты сезона
           </h2>
         </div>
+
         <p className="max-w-xs text-sm leading-relaxed text-white/50">
-          Крупный блок — halo-изделие: оно продаёт дом. Мелкие — вход в чек. Цену читают после
-          касания ткани.
+          Крупный блок — halo-изделие: оно продаёт дом. Мелкие — вход в чек.
+          Цену читают после касания ткани.
         </p>
       </div>
 
@@ -28,7 +91,11 @@ export function BentoCollection({ onSelect }: { onSelect: (product: Product) => 
             initial={{ opacity: 0, y: 28 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.9, delay: index * 0.06, ease }}
+            transition={{
+              duration: 0.9,
+              delay: index * 0.06,
+              ease,
+            }}
             className={`group min-h-[220px] ${product.span}`}
           >
             <MagneticSurface className="h-full rounded-[28px]">
@@ -42,6 +109,7 @@ export function BentoCollection({ onSelect }: { onSelect: (product: Product) => 
                   alt={product.name}
                   className="transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
                 />
+
                 {product.hoverImage && (
                   <img
                     src={product.hoverImage}
@@ -49,14 +117,21 @@ export function BentoCollection({ onSelect }: { onSelect: (product: Product) => 
                     className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 group-hover:opacity-100"
                   />
                 )}
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
                 <div className="glass absolute inset-x-3 bottom-3 rounded-2xl p-4 md:inset-x-4 md:bottom-4">
                   <p className="text-[10px] tracking-[0.28em] text-white/55 uppercase">
                     {product.sku} · {product.line}
                   </p>
+
                   <div className="mt-1 flex items-end justify-between gap-3">
-                    <h3 className="text-lg tracking-[-0.03em] md:text-xl">{product.name}</h3>
-                    <span className="text-sm text-white/70">{formatPrice(product.price)}</span>
+                    <h3 className="text-lg tracking-[-0.03em] md:text-xl">
+                      {product.name}
+                    </h3>
+                    <span className="text-sm text-white/70">
+                      {formatPrice(product.price)}
+                    </span>
                   </div>
                 </div>
               </button>
