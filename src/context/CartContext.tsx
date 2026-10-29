@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -6,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { productById, type Size } from '../data/catalog'
+import type { Product, Size } from '../data/catalog'
 import { loadCartLines, saveCartLines } from '../data/orders'
 
 export type CartLine = {
@@ -14,13 +15,14 @@ export type CartLine = {
   productId: string
   size: Size
   qty: number
+  product?: Product
 }
 
 type CartContextValue = {
   lines: CartLine[]
   open: boolean
   setOpen: (open: boolean) => void
-  add: (productId: string, size: Size) => void
+  add: (productId: string, size: Size, product?: Product) => void
   remove: (key: string) => void
   clear: () => void
   total: number
@@ -38,17 +40,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [lines])
 
   const value = useMemo(() => {
-    const add = (productId: string, size: Size) => {
+    const add = (productId: string, size: Size, product?: Product) => {
       const key = `${productId}-${size}`
+
       setLines((current) => {
         const existing = current.find((line) => line.key === key)
+
         if (existing) {
           return current.map((line) =>
-            line.key === key ? { ...line, qty: line.qty + 1 } : line,
+            line.key === key
+              ? {
+                  ...line,
+                  qty: line.qty + 1,
+                  product: product ?? line.product,
+                }
+              : line,
           )
         }
-        return [...current, { key, productId, size, qty: 1 }]
+
+        return [...current, { key, productId, size, qty: 1, product }]
       })
+
       setOpen(true)
     }
 
@@ -58,10 +70,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const clear = () => setLines([])
 
-    const total = lines.reduce((sum, line) => {
-      const product = productById(line.productId)
-      return sum + (product?.price ?? 0) * line.qty
-    }, 0)
+    const total = lines.reduce(
+      (sum, line) => sum + (line.product?.price ?? 0) * line.qty,
+      0,
+    )
 
     const count = lines.reduce((sum, line) => sum + line.qty, 0)
 
