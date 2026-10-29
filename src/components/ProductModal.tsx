@@ -111,7 +111,7 @@ function LineItem({ product }: { product: Product }) {
       </div>
       <button
         type="button"
-        onClick={() => add(product.id, size)}
+        onClick={() => add(product.id, size, product)}
         className="glass-pill mt-4 inline-flex h-11 w-full items-center justify-center rounded-full text-[11px] tracking-[0.22em] uppercase"
       >
         Добавить в корзину
