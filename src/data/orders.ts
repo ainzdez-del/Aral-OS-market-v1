@@ -1,11 +1,5 @@
-import { formatPrice, productById, type Size } from './catalog'
 
-type SnapshotLine = {
-  key: string
-  productId: string
-  size: Size
-  qty: number
-}
+import type { Product, Size } from './catalog'
 
 export type Fulfillment = 'atelier' | 'courier'
 
@@ -30,7 +24,12 @@ export type OrderItem = {
   unitPrice: number
 }
 
-export type OrderStatus = 'confirmed' | 'atelier' | 'shipped'
+export type OrderStatus =
+  | 'confirmed'
+  | 'atelier'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
 
 export type Order = {
   id: string
@@ -42,33 +41,46 @@ export type Order = {
   currency: string
 }
 
-const ORDERS_KEY = 'aral.orders'
+export type SnapshotLine = {
+  key: string
+  productId: string
+  size: Size
+  qty: number
+  product?: Product
+}
+
 const CART_KEY = 'aral.cart'
 const DRAFT_KEY = 'aral.checkout-draft'
 
 export function linesToItems(lines: SnapshotLine[]): OrderItem[] {
   return lines.flatMap((line) => {
-    const product = productById(line.productId)
+    const product = line.product
     if (!product) return []
-    return [
-      {
-        key: line.key,
-        productId: line.productId,
-        name: product.name,
-        sku: product.sku,
-        image: product.image,
-        size: line.size,
-        qty: line.qty,
-        unitPrice: product.price,
-      },
-    ]
+
+    return [{
+      key: line.key,
+      productId: line.productId,
+      name: product.name,
+      sku: product.sku,
+      image: product.image,
+      size: line.size,
+      qty: line.qty,
+      unitPrice: product.price,
+    }]
   })
 }
 
-export function createOrder(lines: SnapshotLine[], customer: OrderCustomer): Order {
+export function createOrder(
+  lines: SnapshotLine[],
+  customer: OrderCustomer,
+): Order {
   const items = linesToItems(lines)
-  const subtotal = items.reduce((sum, item) => sum + item.unitPrice * item.qty, 0)
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.unitPrice * item.qty,
+    0,
+  )
   const stamp = Date.now().toString(36).toUpperCase()
+
   return {
     id: `ARAL-${stamp}`,
     createdAt: new Date().toISOString(),
@@ -76,16 +88,8 @@ export function createOrder(lines: SnapshotLine[], customer: OrderCustomer): Ord
     customer,
     items,
     subtotal,
-    currency: '€',
+    currency: 'UZS',
   }
-}
-
-export function loadOrders(): Order[] {
-  return readJson<Order[]>(ORDERS_KEY, [])
-}
-
-export function saveOrders(orders: Order[]) {
-  writeJson(ORDERS_KEY, orders)
 }
 
 export function loadCartLines(): SnapshotLine[] {
@@ -105,11 +109,14 @@ export function saveCheckoutDraft(draft: Partial<OrderCustomer>) {
 }
 
 export function formatOrderTotal(order: Order) {
-  return formatPrice(order.subtotal)
+  return `${new Intl.NumberFormat('ru-RU', {
+    maximumFractionDigits: 0,
+  }).format(order.subtotal)} сум`
 }
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback
+
   try {
     const raw = window.localStorage.getItem(key)
     if (!raw) return fallback
@@ -121,5 +128,10 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson(key: string, value: unknown) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(key, JSON.stringify(value))
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.error('Не удалось сохранить данные ARAL:', error)
+  }
 }
