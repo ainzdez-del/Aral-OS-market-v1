@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AdminPanel } from './components/AdminPanel'
 import { Atelier } from './components/Atelier'
 import { BentoCollection } from './components/BentoCollection'
 import { CartDrawer } from './components/CartDrawer'
