@@ -214,6 +214,8 @@ export function Checkout() {
                     />
                   )}
                   <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase">
+                   
+                  <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase">
                     Комментарий
                     <textarea
                       name="note"
@@ -221,11 +223,11 @@ export function Checkout() {
                       value={customer.note}
                       onChange={(event) => patch('note', event.target.value)}
                       className="mt-2 w-full resize-none border-b border-white/15 bg-transparent py-2 text-base font-normal tracking-normal text-white outline-none"
-                      placeholder="Рост, предпочтения по длине, время примерки"
+                      placeholder="Комментарий к заказу"
                     />
                   </label>
-                  <button
-                                      {submitError && (
+
+                  {submitError && (
                     <p role="alert" className="text-sm text-red-400">
                       {submitError}
                     </p>
@@ -294,19 +296,38 @@ function FulfillmentChoice({
   onSelect: (value: Fulfillment) => void
 }) {
   const active = value === current
+
   return (
     <button
       type="button"
       onClick={() => onSelect(value)}
-      className={`rounded-2xl px-4 py-3 text-left ${active ? 'bg-white text-black' : 'bg-white/8 text-white/70'}`}
+      className={`rounded-2xl px-4 py-3 text-left ${
+        active
+          ? 'bg-white text-black'
+          : 'bg-white/8 text-white/70'
+      }`}
     >
-      <p className="text-[11px] tracking-[0.18em] uppercase">{title}</p>
-      <p className={`mt-1 text-[11px] ${active ? 'text-black/50' : 'text-white/40'}`}>{caption}</p>
+      <p className="text-[11px] tracking-[0.18em] uppercase">
+        {title}
+      </p>
+      <p
+        className={`mt-1 text-[11px] ${
+          active ? 'text-black/50' : 'text-white/40'
+        }`}
+      >
+        {caption}
+      </p>
     </button>
   )
 }
 
-function Receipt({ order, onClose }: { order: Order; onClose: () => void }) {
+function Receipt({
+  order,
+  onClose,
+}: {
+  order: Order
+  onClose: () => void
+}) {
   const when = useMemo(
     () =>
       new Intl.DateTimeFormat('ru', {
@@ -320,38 +341,58 @@ function Receipt({ order, onClose }: { order: Order; onClose: () => void }) {
 
   return (
     <div className="p-6 md:p-10">
-      <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">Заказ принят</p>
-      <h2 className="mt-3 text-3xl font-light tracking-[-0.03em] md:text-5xl">{order.id}</h2>
+      <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">
+        Заказ принят
+      </p>
+
+      <h2 className="mt-3 text-3xl font-light tracking-[-0.03em] md:text-5xl">
+        {order.id}
+      </h2>
+
       <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/55">
         {order.customer.fulfillment === 'atelier'
-          ? `Примерка забронирована. Консьерж напишет на ${order.customer.email} в течение 48 часов.`
-          : `Курьер везёт в ${order.customer.city}. Срок 5–9 дней. Трекинг придёт на ${order.customer.email}.`}
+          ? `Мы получили ваш заказ. Свяжемся с вами по адресу ${order.customer.email} для уточнения деталей.`
+          : `Заказ оформлен для доставки в ${order.customer.city}. Мы свяжемся с вами по адресу ${order.customer.email} для уточнения деталей.`}
       </p>
-      <p className="mt-2 text-[11px] tracking-[0.16em] text-white/35 uppercase">{when}</p>
+
+      <p className="mt-2 text-[11px] tracking-[0.16em] text-white/35 uppercase">
+        {when}
+      </p>
 
       <div className="mt-8 space-y-3">
         {order.items.map((item) => (
-          <div key={item.key} className="flex justify-between gap-4 text-sm">
+          <div
+            key={item.key}
+            className="flex justify-between gap-4 text-sm"
+          >
             <span>
               {item.name} · {item.size} ×{item.qty}
             </span>
-            <span className="text-white/70">{formatPrice(item.unitPrice * item.qty)}</span>
+            <span className="text-white/70">
+              {formatPrice(item.unitPrice * item.qty)}
+            </span>
           </div>
         ))}
       </div>
+
       <div className="mt-6 flex justify-between border-t border-white/10 pt-4 text-sm">
         <span className="text-white/50">Итого</span>
         <span>{formatPrice(order.subtotal)}</span>
       </div>
+
       <dl className="mt-6 grid gap-2 text-sm text-white/50">
         <div className="flex justify-between gap-4">
           <dt>Клиент</dt>
           <dd className="text-white">{order.customer.name}</dd>
         </div>
+
         <div className="flex justify-between gap-4">
           <dt>Контакт</dt>
-          <dd className="text-right text-white">{order.customer.phone}</dd>
+          <dd className="text-right text-white">
+            {order.customer.phone}
+          </dd>
         </div>
+
         {order.customer.fulfillment === 'courier' && (
           <div className="flex justify-between gap-4">
             <dt>Адрес</dt>
@@ -361,13 +402,15 @@ function Receipt({ order, onClose }: { order: Order; onClose: () => void }) {
           </div>
         )}
       </dl>
+
       <button
         type="button"
         onClick={onClose}
         className="glass-pill mt-8 inline-flex h-12 items-center rounded-full px-8 text-[11px] tracking-[0.22em] uppercase"
       >
-        Вернуться в дом
+        Вернуться в магазин
       </button>
     </div>
   )
 }
+ 
