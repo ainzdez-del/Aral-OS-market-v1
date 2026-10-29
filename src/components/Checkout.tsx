@@ -222,11 +222,20 @@ export function Checkout() {
                     />
                   </label>
                   <button
+                                      {submitError && (
+                    <p role="alert" className="text-sm text-red-400">
+                      {submitError}
+                    </p>
+                  )}
+
+                  <button
                     type="submit"
-                    disabled={lines.length === 0}
+                    disabled={lines.length === 0 || submitting}
                     className="h-12 w-full rounded-full bg-white text-[11px] tracking-[0.24em] text-black uppercase disabled:opacity-40"
                   >
-                    Подтвердить заказ
+                    {submitting
+                      ? 'Сохраняем заказ…'
+                      : 'Подтвердить заказ'}
                   </button>
                 </form>
               </div>
