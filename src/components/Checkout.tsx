@@ -32,6 +32,8 @@ export function Checkout() {
     ...loadCheckoutDraft(),
   }))
   const [placed, setPlaced] = useState<Order | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   useEffect(() => {
     saveCheckoutDraft(customer)
@@ -41,12 +43,34 @@ export function Checkout() {
     if (!checkoutOpen) setPlaced(null)
   }, [checkoutOpen])
 
+  
   const onClose = () => setCheckoutOpen(false)
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const order = placeOrder(customer)
-    if (order) setPlaced(order)
+
+    if (submitting) return
+
+    setSubmitting(true)
+    setSubmitError('')
+
+    try {
+      const order = await placeOrder(customer)
+
+      if (order) {
+        setPlaced(order)
+      } else {
+        setSubmitError('Корзина пуста. Добавь товар перед оформлением.')
+      }
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось оформить заказ. Попробуй ещё раз.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const patch = (field: keyof OrderCustomer, value: string) => {
@@ -61,6 +85,7 @@ export function Checkout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+
         >
           <button
             type="button"
