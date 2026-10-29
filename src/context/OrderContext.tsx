@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -7,7 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useCart } from './CartContext'
-import { createOrder, type Order, type OrderCustomer } from '../data/orders'
+import {
+  createOrder,
+  type Order,
+  type OrderCustomer,
+  type OrderStatus,
+} from '../data/orders'
 import { supabase } from '../lib/supabase'
 
 type OrderContextValue = {
@@ -34,7 +40,7 @@ function mapOrder(row: OrderRow): Order {
   return {
     id: row.order_number,
     createdAt: row.created_at,
-    status: row.status as Order['status'],
+    status: row.status as OrderStatus,
     customer: row.customer,
     items: row.items,
     subtotal: Number(row.subtotal),
@@ -55,8 +61,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!active || !user) {
-        if (active) setOrders([])
+      if (!active) return
+
+      if (!user) {
+        setOrders([])
         return
       }
 
@@ -98,6 +106,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     ): Promise<Order | null> => {
       if (lines.length === 0) return null
 
+      if (lines.some((line) => !line.product)) {
+        throw new Error(
+          'В корзине есть товар без данных. Удали его и добавь заново.',
+        )
+      }
+
       const {
         data: { user },
         error: authError,
@@ -108,6 +122,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       }
 
       const order = createOrder(lines, customer)
+
+      if (order.items.length === 0 || order.subtotal <= 0) {
+        throw new Error(
+          'Не удалось определить состав или сумму заказа. Проверь товары в корзине.',
+        )
+      }
 
       const orderToSave = {
         order_number: order.id,
@@ -128,6 +148,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (error) {
+        console.error('Не удалось сохранить заказ:', error.message)
         throw new Error(`Не удалось сохранить заказ: ${error.message}`)
       }
 
@@ -149,7 +170,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   }, [lines, orders, checkoutOpen, clear, setCartOpen])
 
-  return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>
+  return (
+    <OrderContext.Provider value={value}>
+      {children}
+    </OrderContext.Provider>
+  )
 }
 
 export function useOrders() {
