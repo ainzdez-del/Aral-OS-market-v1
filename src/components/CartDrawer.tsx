@@ -1,6 +1,7 @@
+
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
-import { formatPrice, productById } from '../data/catalog'
+import { formatPrice } from '../data/catalog'
 import { useCart } from '../context/CartContext'
 import { useOrders } from '../context/OrderContext'
 
@@ -13,13 +14,19 @@ export function CartDrawer() {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[60]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div
+          className="fixed inset-0 z-[60]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           <button
             type="button"
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             aria-label="Закрыть корзину"
             onClick={() => setOpen(false)}
           />
+
           <motion.aside
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -28,7 +35,9 @@ export function CartDrawer() {
             className="glass absolute inset-y-0 right-0 flex w-full max-w-md flex-col p-6"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm tracking-[0.28em] uppercase">Корзина</h2>
+              <h2 className="text-sm tracking-[0.28em] uppercase">
+                Корзина
+              </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -38,20 +47,45 @@ export function CartDrawer() {
                 <X size={16} />
               </button>
             </div>
+
             <div className="mt-8 flex-1 space-y-6 overflow-y-auto">
               {lines.length === 0 && (
-                <p className="text-sm text-white/50">Пусто. Образы ждут в lookbook.</p>
+                <p className="text-sm text-white/50">
+                  Корзина пуста. Выбери товар из коллекции.
+                </p>
               )}
+
               {lines.map((line) => {
-                const product = productById(line.productId)
-                if (!product) return null
+                const product = line.product
+
+                if (!product) {
+                  return (
+                    <div
+                      key={line.key}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <p className="text-sm text-white/50">
+                        Товар больше недоступен. Удали его и добавь заново.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => remove(line.key)}
+                        className="text-xs text-white/60 underline"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  )
+                }
+
                 return (
                   <div key={line.key} className="flex gap-4">
                     <img
                       src={product.image}
-                      alt=""
+                      alt={product.name}
                       className="h-24 w-20 rounded-2xl object-cover"
                     />
+
                     <div className="flex-1">
                       <p className="text-sm">{product.name}</p>
                       <p className="mt-1 text-[11px] text-white/45">
@@ -72,17 +106,23 @@ export function CartDrawer() {
                 )
               })}
             </div>
+
             <div className="border-t border-white/10 pt-5">
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Итого</span>
                 <span>{formatPrice(total)}</span>
               </div>
+
               <p className="mt-2 text-[11px] leading-relaxed text-white/35">
-                Примерка в ателье — 48 часов. Возврат 14 дней, изделие в первозданном виде.
+                Данные заказа будут сохранены после подтверждения.
               </p>
+
               <button
                 type="button"
-                disabled={lines.length === 0}
+                disabled={
+                  lines.length === 0 ||
+                  lines.some((line) => !line.product)
+                }
                 onClick={() => {
                   setOpen(false)
                   setCheckoutOpen(true)
