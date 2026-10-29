@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOrders } from '../context/OrderContext'
 import { formatPrice, products, type Product } from '../data/catalog'
+import { supabase } from '../lib/supabase'
 
 export function SearchOverlay({
   open,
