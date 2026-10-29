@@ -119,7 +119,7 @@ export function Checkout() {
                   <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">Заказ</p>
                   <h2 className="mt-3 text-3xl font-light tracking-[-0.03em]">Оформление</h2>
                   <p className="mt-3 text-sm text-white/50">
-                    Цена фиксируется в момент подтверждения. Доставка включена. Примерка — 48 часов.
+                    Проверь состав заказа и укажи данные для доставки.
                   </p>
                   <div className="mt-8 space-y-4">
                     {lines.map((line) => {
