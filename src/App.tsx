@@ -16,6 +16,10 @@ import { OrderProvider, useOrders } from './context/OrderContext'
 import type { Look, Product } from './data/catalog'
 
 export default function App() {
+  if (window.location.pathname === '/admin') {
+    return <AdminPanel />
+  }
+
   return (
     <CartProvider>
       <OrderProvider>
