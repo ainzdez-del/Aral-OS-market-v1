@@ -203,6 +203,248 @@ export function ProfileOverlay({ open, onClose }: { open: boolean; onClose: () =
               {orders.map((order) => (
                 <li key={order.id} className="border-b border-white/8 pb-4">
                   <div className="flex items-baseline justify-between gap-3">
+                    
+export function ProfileOverlay({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { orders } = useOrders()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [signedIn, setSignedIn] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!active) return
+      setSignedIn(Boolean(data.user))
+      setUserEmail(data.user?.email ?? '')
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(Boolean(session))
+      setUserEmail(session?.user.email ?? '')
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  if (!open) return null
+
+  async function handleAuth() {
+    setMessage('')
+    setLoading(true)
+
+    try {
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { display_name: displayName.trim() },
+          },
+        })
+
+        if (error) throw error
+
+        if (data.session) {
+          setSignedIn(true)
+          setUserEmail(data.user?.email ?? email.trim())
+          setMessage('Аккаунт создан. Вы вошли в ARAL Shop.')
+        } else {
+          setMessage(
+            'Аккаунт создан. Проверьте почту и подтвердите email, затем войдите.',
+          )
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        })
+
+        if (error) throw error
+
+        setSignedIn(true)
+        setUserEmail(data.user.email ?? email.trim())
+
+        const { data: admin, error: adminError } =
+          await supabase.rpc('is_admin')
+
+        if (!adminError && admin === true) {
+          window.location.assign('/admin')
+          return
+        }
+
+        setMessage('Вы вошли в аккаунт ARAL Shop.')
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось выполнить операцию.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleLogout() {
+    setLoading(true)
+
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      setMessage(`Не удалось выйти: ${error.message}`)
+    } else {
+      setSignedIn(false)
+      setUserEmail('')
+      setPassword('')
+      setMessage('Вы вышли из аккаунта.')
+    }
+
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Закрыть профиль"
+        className="absolute inset-0 bg-black/55 backdrop-blur-md"
+        onClick={onClose}
+      />
+
+      <div className="glass relative max-h-[86svh] w-full max-w-md overflow-y-auto rounded-[28px] p-8">
+        <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">
+          ARAL OS · ACCOUNT
+        </p>
+
+        <h3 className="mt-3 text-3xl font-light tracking-[-0.03em]">
+          {signedIn
+            ? 'Ваш профиль'
+            : mode === 'login'
+              ? 'С возвращением'
+              : 'Создать аккаунт'}
+        </h3>
+
+        {signedIn ? (
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+              Аккаунт
+            </p>
+            <p className="mt-2 break-words text-sm">{userEmail}</p>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void handleLogout()}
+              className="mt-5 rounded-full border border-white/15 px-5 py-2 text-sm disabled:opacity-50"
+            >
+              {loading ? 'Подождите…' : 'Выйти из аккаунта'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <form
+              className="mt-6 space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void handleAuth()
+              }}
+            >
+              {mode === 'signup' && (
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Ваше имя"
+                  autoComplete="name"
+                  required
+                  className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+                />
+              )}
+
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="Email"
+                autoComplete="email"
+                required
+                className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+              />
+
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Пароль (минимум 6 символов)"
+                autoComplete={
+                  mode === 'login' ? 'current-password' : 'new-password'
+                }
+                minLength={6}
+                required
+                className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 outline-none"
+              />
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="glass-pill h-12 w-full rounded-full text-[11px] tracking-[0.2em] uppercase disabled:opacity-50"
+              >
+                {loading
+                  ? 'Подождите…'
+                  : mode === 'login'
+                    ? 'Войти'
+                    : 'Зарегистрироваться'}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              className="mt-4 text-sm text-white/60 underline underline-offset-4"
+              onClick={() => {
+                setMode(mode === 'login' ? 'signup' : 'login')
+                setMessage('')
+              }}
+            >
+              {mode === 'login'
+                ? 'Нет аккаунта? Зарегистрироваться'
+                : 'Уже есть аккаунт? Войти'}
+            </button>
+          </>
+        )}
+
+        {message && (
+          <p role="status" className="mt-4 break-words text-sm text-white/70">
+            {message}
+          </p>
+        )}
+
+        <div className="mt-8 border-t border-white/10 pt-6">
+          <p className="text-[11px] tracking-[0.22em] text-white/40 uppercase">
+            Заказы
+          </p>
+
+          {orders.length === 0 ? (
+            <p className="mt-3 text-sm text-white/45">Пока заказов нет.</p>
+          ) : (
+            <ul className="mt-4 space-y-4">
+              {orders.map((order) => (
+                <li key={order.id} className="border-b border-white/8 pb-4">
+                  <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm">{order.id}</p>
                     <p className="text-sm text-white/70">
                       {formatPrice(order.subtotal)}
