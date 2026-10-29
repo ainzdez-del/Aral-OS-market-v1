@@ -213,10 +213,8 @@ export function Checkout() {
                       required
                     />
                   )}
-                  <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase">
-                   
-                  <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase">
-                    Комментарий
+                                    <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase"> 
+                   Комментарий
                     <textarea
                       name="note"
                       rows={2}
