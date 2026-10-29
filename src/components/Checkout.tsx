@@ -1,9 +1,10 @@
+
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useCart } from '../context/CartContext'
 import { useOrders } from '../context/OrderContext'
-import { formatPrice, productById } from '../data/catalog'
+import { formatPrice } from '../data/catalog'
 import {
   loadCheckoutDraft,
   saveCheckoutDraft,
@@ -21,12 +22,13 @@ const emptyCustomer: OrderCustomer = {
   city: '',
   address: '',
   note: '',
-  fulfillment: 'atelier',
+  fulfillment: 'courier',
 }
 
 export function Checkout() {
   const { lines, total, setOpen: setCartOpen } = useCart()
   const { checkoutOpen, setCheckoutOpen, placeOrder } = useOrders()
+
   const [customer, setCustomer] = useState<OrderCustomer>(() => ({
     ...emptyCustomer,
     ...loadCheckoutDraft(),
@@ -40,16 +42,22 @@ export function Checkout() {
   }, [customer])
 
   useEffect(() => {
-    if (!checkoutOpen) setPlaced(null)
+    if (!checkoutOpen) {
+      setPlaced(null)
+      setSubmitError('')
+    }
   }, [checkoutOpen])
 
-  
   const onClose = () => setCheckoutOpen(false)
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
     if (submitting) return
+
+    if (lines.length === 0 || lines.some((line) => !line.product)) {
+      setSubmitError('В корзине есть недоступный товар. Удали его и добавь заново.')
+      return
+    }
 
     setSubmitting(true)
     setSubmitError('')
@@ -85,7 +93,6 @@ export function Checkout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-
         >
           <button
             type="button"
@@ -93,6 +100,7 @@ export function Checkout() {
             aria-label="Закрыть оформление"
             onClick={onClose}
           />
+
           <motion.div
             role="dialog"
             aria-modal
@@ -116,20 +124,26 @@ export function Checkout() {
             ) : (
               <div className="grid md:grid-cols-2">
                 <aside className="border-b border-white/8 p-6 md:border-r md:border-b-0 md:p-8">
-                  <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">Заказ</p>
-                  <h2 className="mt-3 text-3xl font-light tracking-[-0.03em]">Оформление</h2>
+                  <p className="text-[11px] tracking-[0.28em] text-white/45 uppercase">
+                    Заказ
+                  </p>
+                  <h2 className="mt-3 text-3xl font-light tracking-[-0.03em]">
+                    Оформление
+                  </h2>
                   <p className="mt-3 text-sm text-white/50">
                     Проверь состав заказа и укажи данные для доставки.
                   </p>
+
                   <div className="mt-8 space-y-4">
                     {lines.map((line) => {
-                      const product = productById(line.productId)
+                      const product = line.product
                       if (!product) return null
+
                       return (
                         <div key={line.key} className="flex gap-3">
                           <img
                             src={product.image}
-                            alt=""
+                            alt={product.name}
                             className="h-16 w-14 rounded-xl object-cover"
                           />
                           <div className="min-w-0 flex-1">
@@ -145,10 +159,12 @@ export function Checkout() {
                       )
                     })}
                   </div>
+
                   <div className="mt-8 flex justify-between border-t border-white/10 pt-4 text-sm">
                     <span className="text-white/50">Итого</span>
                     <span>{formatPrice(total)}</span>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -162,9 +178,9 @@ export function Checkout() {
                 </aside>
 
                 <form
-              onSubmit={(event) => void onSubmit(event)}
-              className="space-y-5 p-6 md:p-8"
-              >
+                  onSubmit={(event) => void onSubmit(event)}
+                  className="space-y-5 p-6 md:p-8"
+                >
                   <Field label="Имя" name="name" value={customer.name} onChange={patch} required />
                   <Field
                     label="Email"
@@ -182,7 +198,14 @@ export function Checkout() {
                     onChange={patch}
                     required
                   />
-                  <Field label="Город" name="city" value={customer.city} onChange={patch} required />
+                  <Field
+                    label="Город"
+                    name="city"
+                    value={customer.city}
+                    onChange={patch}
+                    required
+                  />
+
                   <fieldset>
                     <legend className="text-[11px] tracking-[0.2em] text-white/45 uppercase">
                       Получение
@@ -191,30 +214,32 @@ export function Checkout() {
                       <FulfillmentChoice
                         value="atelier"
                         current={customer.fulfillment}
-                        title="Ателье"
-                        caption="Примерка 48 ч"
+                        title="Самовывоз"
+                        caption="По согласованию"
                         onSelect={(value) => patch('fulfillment', value)}
                       />
                       <FulfillmentChoice
                         value="courier"
                         current={customer.fulfillment}
-                        title="Курьер"
-                        caption="5–9 дней"
+                        title="Доставка"
+                        caption="Срок уточним"
                         onSelect={(value) => patch('fulfillment', value)}
                       />
                     </div>
                   </fieldset>
+
                   {customer.fulfillment === 'courier' && (
                     <Field
-                      label="Адрес"
+                      label="Адрес доставки"
                       name="address"
                       value={customer.address}
                       onChange={patch}
                       required
                     />
                   )}
-                                    <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase"> 
-                   Комментарий
+
+                  <label className="block text-[11px] tracking-[0.2em] text-white/45 uppercase">
+                    Комментарий
                     <textarea
                       name="note"
                       rows={2}
@@ -233,12 +258,14 @@ export function Checkout() {
 
                   <button
                     type="submit"
-                    disabled={lines.length === 0 || submitting}
+                    disabled={
+                      lines.length === 0 ||
+                      lines.some((line) => !line.product) ||
+                      submitting
+                    }
                     className="h-12 w-full rounded-full bg-white text-[11px] tracking-[0.24em] text-black uppercase disabled:opacity-40"
                   >
-                    {submitting
-                      ? 'Сохраняем заказ…'
-                      : 'Подтвердить заказ'}
+                    {submitting ? 'Сохраняем заказ…' : 'Подтвердить заказ'}
                   </button>
                 </form>
               </div>
@@ -300,35 +327,21 @@ function FulfillmentChoice({
       type="button"
       onClick={() => onSelect(value)}
       className={`rounded-2xl px-4 py-3 text-left ${
-        active
-          ? 'bg-white text-black'
-          : 'bg-white/8 text-white/70'
+        active ? 'bg-white text-black' : 'bg-white/8 text-white/70'
       }`}
     >
-      <p className="text-[11px] tracking-[0.18em] uppercase">
-        {title}
-      </p>
-      <p
-        className={`mt-1 text-[11px] ${
-          active ? 'text-black/50' : 'text-white/40'
-        }`}
-      >
+      <p className="text-[11px] tracking-[0.18em] uppercase">{title}</p>
+      <p className={`mt-1 text-[11px] ${active ? 'text-black/50' : 'text-white/40'}`}>
         {caption}
       </p>
     </button>
   )
 }
 
-function Receipt({
-  order,
-  onClose,
-}: {
-  order: Order
-  onClose: () => void
-}) {
+function Receipt({ order, onClose }: { order: Order; onClose: () => void }) {
   const when = useMemo(
     () =>
-      new Intl.DateTimeFormat('ru', {
+      new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',
         month: 'long',
         hour: '2-digit',
@@ -349,8 +362,8 @@ function Receipt({
 
       <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/55">
         {order.customer.fulfillment === 'atelier'
-          ? `Мы получили ваш заказ. Свяжемся с вами по адресу ${order.customer.email} для уточнения деталей.`
-          : `Заказ оформлен для доставки в ${order.customer.city}. Мы свяжемся с вами по адресу ${order.customer.email} для уточнения деталей.`}
+          ? 'Мы получили ваш заказ на самовывоз. Свяжемся с вами для уточнения деталей.'
+          : `Заказ оформлен для доставки в ${order.customer.city}. Мы свяжемся с вами для уточнения деталей.`}
       </p>
 
       <p className="mt-2 text-[11px] tracking-[0.16em] text-white/35 uppercase">
@@ -359,10 +372,7 @@ function Receipt({
 
       <div className="mt-8 space-y-3">
         {order.items.map((item) => (
-          <div
-            key={item.key}
-            className="flex justify-between gap-4 text-sm"
-          >
+          <div key={item.key} className="flex justify-between gap-4 text-sm">
             <span>
               {item.name} · {item.size} ×{item.qty}
             </span>
@@ -383,12 +393,9 @@ function Receipt({
           <dt>Клиент</dt>
           <dd className="text-white">{order.customer.name}</dd>
         </div>
-
         <div className="flex justify-between gap-4">
           <dt>Контакт</dt>
-          <dd className="text-right text-white">
-            {order.customer.phone}
-          </dd>
+          <dd className="text-right text-white">{order.customer.phone}</dd>
         </div>
 
         {order.customer.fulfillment === 'courier' && (
@@ -411,4 +418,3 @@ function Receipt({
     </div>
   )
 }
- 
