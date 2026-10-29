@@ -161,7 +161,10 @@ export function Checkout() {
                   </button>
                 </aside>
 
-                <form onSubmit={onSubmit} className="space-y-5 p-6 md:p-8">
+                <form
+              onSubmit={(event) => void onSubmit(event)}
+              className="space-y-5 p-6 md:p-8"
+              >
                   <Field label="Имя" name="name" value={customer.name} onChange={patch} required />
                   <Field
                     label="Email"
